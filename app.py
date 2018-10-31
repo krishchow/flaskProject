@@ -2,7 +2,7 @@ from flask import Flask, jsonify, abort, request
 import sqlite3
 import csv
 import random, string
-
+import datetime
 
 app = Flask(__name__)
 
@@ -25,20 +25,22 @@ def verifyKey(key):
         return 2
     return 1
 
-
-def initAuthTable():
+def initDb():
     conn = sqlite3.connect(r'data.db')
     cur = conn.cursor()
     cur.execute('CREATE TABLE IF NOT EXISTS auth (username, key, level);')
+    cur.execute('CREATE TABLE IF NOT EXISTS dillDB (OriginKey, dillValue, date, itemName);')
+    #cur.execute('INSERT INTO auth VALUES ("{0}", "{1}", "{2}");'.format('admin', '123456', 2))
+    #print(verifyKey('123456'))
     conn.commit()
     conn.close()
 
 @app.route('/admin/add', methods=['GET'])
 def addNewAuth():
-    initAuthTable()
-    username = request.args.get('user')
-    level = request.args.get('level')
-    stat = verifyKey(request.args.get('key'))
+    initDb()
+    username = request.headers.get('user')
+    level = request.headers.get('level')
+    stat = verifyKey(request.headers.get('key'))
     if stat < 2:
         return abort(401)
     conn = sqlite3.connect(r'data.db')
@@ -67,6 +69,41 @@ def getMon(id):
     if row == None:
         return abort(404)
     return jsonify(list(row))
+
+@app.route('/pythonObj', methods=['GET','POST'])
+def addPython():
+    #123456
+    #testUpload
+    if request.method == 'POST':
+        sentItem = request.headers.get('pythonCode')
+        itemName = request.headers.get('codeName')
+        key = request.headers.get('key')
+        stat = verifyKey(key)
+        if stat < 1:
+            return abort(401)
+        conn = sqlite3.connect(r'data.db')
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM dillDB WHERE itemName="{0}";'.format(itemName))
+        if cur.fetchone():
+            return abort(400)
+        cur.execute('INSERT INTO dillDB VALUES ("{0}","{1}","{2}","{3}");'.format(key,sentItem,datetime.datetime.now(),itemName))
+        conn.commit()
+        conn.close()
+        return "upload succesful"
+    elif request.method == 'GET':
+        itemName = request.headers.get('codeName')
+        key = request.headers.get('key')
+        stat = verifyKey(key)
+        if stat < 1:
+            return abort(401)
+        conn = sqlite3.connect(r'data.db')
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM dillDB WHERE itemName="{0}";'.format(itemName))
+        row = cur.fetchone()
+        if not row:
+            return abort(404)
+        else:
+            return jsonify({'pythonCode':list(row)[1]})
 
 if __name__ == '__main__':
     app.run(debug=True)
