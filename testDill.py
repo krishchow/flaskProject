@@ -9,6 +9,16 @@ class Queue():
     def pop(self):
         return self.data.pop(0)
 
-data = dill.dumps(Queue)
+firstQueue = Queue()
+firstQueue.add(1232312323)
+firstQueue.add('adbcasdsd')
+firstQueue.add(False)
+nestedQueue = Queue()
+nestedQueue.add('hello world')
+firstQueue.add(nestedQueue)
+
+
+
+data = dill.dumps(firstQueue)
 data = base64.b64encode(data)
 print(data)
