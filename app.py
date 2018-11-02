@@ -34,7 +34,6 @@ def initDb():
     cur.execute('CREATE TABLE IF NOT EXISTS auth (username, key, level);')
     cur.execute('CREATE TABLE IF NOT EXISTS dillDB (OriginKey, dillValue, date, itemName,runOnCall);')
     cur.execute('INSERT INTO auth VALUES ("{0}", "{1}", "{2}");'.format('admin', '123456', 2))
-    print(verifyKey('123456'))
     conn.commit()
     conn.close()
 
@@ -61,7 +60,6 @@ def addNewAuth():
 @app.route('/poke/<id>')
 def getMon(id):
     auth = request.headers.get('key')
-    print(auth)
     if not verifyKey(auth):
         return abort(401)
 

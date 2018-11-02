@@ -8,8 +8,6 @@ headers = {'codeName':'fib5','key':'123456'}
 r = requests.get(url, headers=headers)
 data = r.json()['pythonCode']
 data = ast.literal_eval(data)
-print(type(data))
-print(data)
 data = base64.b64decode(data)
 
 data = dill.loads(data)
