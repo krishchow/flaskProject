@@ -3,15 +3,16 @@ import sqlite3
 import csv
 import random, string
 import datetime
+import ast,base64,dill
 
 app = Flask(__name__)
 
-@app.route('/test')
+@app.route('/')
 def index():
     return "Hello, World!"
 
 def isAdmin(row):
-    if int(list(row)[2]) == 2:
+    if int(list(row)[2]) >= 2:
         return True
 
 def verifyKey(key):
@@ -28,10 +29,12 @@ def verifyKey(key):
 def initDb():
     conn = sqlite3.connect(r'data.db')
     cur = conn.cursor()
+    #cur.execute('DROP TABLE auth;')
+    #cur.execute('DROP TABLE dillDB;')
     cur.execute('CREATE TABLE IF NOT EXISTS auth (username, key, level);')
-    cur.execute('CREATE TABLE IF NOT EXISTS dillDB (OriginKey, dillValue, date, itemName);')
-    #cur.execute('INSERT INTO auth VALUES ("{0}", "{1}", "{2}");'.format('admin', '123456', 2))
-    #print(verifyKey('123456'))
+    cur.execute('CREATE TABLE IF NOT EXISTS dillDB (OriginKey, dillValue, date, itemName,runOnCall);')
+    cur.execute('INSERT INTO auth VALUES ("{0}", "{1}", "{2}");'.format('admin', '123456', 2))
+    print(verifyKey('123456'))
     conn.commit()
     conn.close()
 
@@ -57,7 +60,7 @@ def addNewAuth():
 
 @app.route('/poke/<id>')
 def getMon(id):
-    auth = request.args.get('key')
+    auth = request.headers.get('key')
     print(auth)
     if not verifyKey(auth):
         return abort(401)
@@ -78,6 +81,7 @@ def addPython():
         sentItem = request.headers.get('pythonCode')
         itemName = request.headers.get('codeName')
         key = request.headers.get('key')
+        runOnCall = request.headers.get('toRun')
         stat = verifyKey(key)
         if stat < 1:
             return abort(401)
@@ -86,10 +90,19 @@ def addPython():
         cur.execute('SELECT * FROM dillDB WHERE itemName="{0}";'.format(itemName))
         if cur.fetchone():
             return abort(400)
-        cur.execute('INSERT INTO dillDB VALUES ("{0}","{1}","{2}","{3}");'.format(key,sentItem,datetime.datetime.now(),itemName))
+        cur.execute('INSERT INTO dillDB VALUES ("{0}","{1}","{2}","{3}","{4}");'.format(key,sentItem,datetime.datetime.now(),itemName,runOnCall))
         conn.commit()
         conn.close()
-        return "upload succesful"
+        if runOnCall == 'true':
+            codeBinary = ast.literal_eval(sentItem)
+            code = base64.b64decode(codeBinary)
+            code = dill.loads(code)
+            try:
+                return jsonify({'return':code.run()})
+            except:
+                return "upload succesful"
+        else:
+            return "upload succesful"
     elif request.method == 'GET':
         itemName = request.headers.get('codeName')
         key = request.headers.get('key')
@@ -103,9 +116,20 @@ def addPython():
         if not row:
             return abort(404)
         else:
-            return jsonify({'pythonCode':list(row)[1]})
+            code = list(row)[1]
+            if list(row)[4]=='true':
+                codeBinary = ast.literal_eval(code)
+                code = base64.b64decode(codeBinary)
+                code = dill.loads(code)
+                try:
+                    return jsonify({'return':code.run()})
+                except:
+                    return "upload succesful"
+            else:
+                return jsonify({'pythonCode':code})
 
 if __name__ == '__main__':
+    initDb()
     app.run(debug=True)
     conn = sqlite3.connect(r'data.db')
     cur = conn.cursor()
